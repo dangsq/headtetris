@@ -39,7 +39,9 @@ const chronicleEl = $('chronicle')
 const DEBUG = new URLSearchParams(location.search).has('debug')
 /** ?nocam：无摄像头渲染模式（出帧用）——跳过摄像头/模型，隐藏人物层 */
 const NOCAM = new URLSearchParams(location.search).has('nocam')
-if (NOCAM) video.style.display = 'none'
+/** ?frame=play：布景模式（出帧用）——预设一局游戏画面，冻结逻辑只渲染 */
+const FRAME_PLAY = new URLSearchParams(location.search).get('frame') === 'play'
+if (NOCAM || FRAME_PLAY) video.style.display = 'none'
 
 const input = new HeadInput()
 
@@ -102,6 +104,33 @@ function reset() {
   nextKind = bag.next()
   score = 0
   lines = 0
+  level = 1
+  gravAcc = 0
+  over = false
+  phase = 'playing'
+  clearing = null
+  particles = []
+  silkStreamers = []
+  threadFlies = []
+  startedAt = performance.now()
+  hintEl.classList.remove('hide')
+}
+
+/** 布景模式（?frame=play）：预设一局画面——底堆 + 悬停竖直 I 锭对准差一格抽丝的缺口 */
+function setupFramePlay() {
+  board = newBoard()
+  // 各列底堆高度（col6 只叠 2 格，在 ROWS-3 行留一个缺口 = 差一格抽丝）
+  const heights = [3, 4, 3, 4, 5, 3, 2, 4, 4, 3, 3]
+  for (let x = 0; x < COLS; x++) {
+    for (let h = 0; h < heights[x]; h++) {
+      board[ROWS - 1 - h][x] = ((x + h) % 7) + 1
+    }
+  }
+  // 活动块：竖直 I 锭（矩阵占第 1 列 → 棋盘列 = x+1 = 6），悬在缺口上方
+  piece = { kind: 'I', rot: 1, x: 5, y: 4 }
+  nextKind = 'O'
+  score = 420
+  lines = 3
   level = 1
   gravAcc = 0
   over = false
@@ -198,7 +227,7 @@ function buildWall(w: number, h: number) {
     }
   }
   // 中心镂空（露出摄像头）：径向渐隐；出帧模式（无摄像头）则整墙铺满
-  if (!NOCAM) {
+  if (!NOCAM && !FRAME_PLAY) {
     g.globalCompositeOperation = 'destination-in'
     const mg = g.createRadialGradient(
       c.width / 2, c.height / 2, Math.min(w, h) * 0.28,
@@ -820,7 +849,7 @@ function draw(nowSec: number, headX: number, faceValid: boolean) {
     ctx.lineTo(mx + 7, my - 9)
     ctx.closePath()
     ctx.fill()
-  } else if (piece) {
+  } else if (piece && !FRAME_PLAY) {
     ctx.fillStyle = 'rgba(255,180,90,0.9)'
     ctx.font = '700 13px monospace'
     ctx.textAlign = 'center'
@@ -1030,9 +1059,9 @@ async function main() {
     bootEl.textContent = t
     bootEl.classList.toggle('err', err)
   }
-  setBoot(NOCAM ? '正在布置戏台…' : '正在唤醒摄像头…')
+  setBoot(NOCAM || FRAME_PLAY ? '正在布置戏台…' : '正在唤醒摄像头…')
   let face: Awaited<ReturnType<typeof createFace>> | null = null
-  if (!NOCAM) {
+  if (!NOCAM && !FRAME_PLAY) {
     try {
       await openCamera(video)
     } catch {
@@ -1049,10 +1078,14 @@ async function main() {
     }
   }
   bootEl.classList.add('hide')
-  // 停在初始画面，点击后开始
-  reset()
-  phase = 'title'
-  piece = null
+  // 布景模式直接摆好一局；否则停在初始画面，点击后开始
+  if (FRAME_PLAY) {
+    setupFramePlay()
+  } else {
+    reset()
+    phase = 'title'
+    piece = null
+  }
 
   const loop = () => {
     const now = performance.now()
@@ -1062,7 +1095,7 @@ async function main() {
     let headX = window.innerWidth / 2
     let faceValid = false
 
-    if (!NOCAM && face && video.readyState >= 2) {
+    if (!NOCAM && !FRAME_PLAY && face && video.readyState >= 2) {
       try {
         const result = face.detectForVideo(video, now)
         const { frame, events } = input.update(result, makeMapper(video.videoWidth, video.videoHeight, window.innerWidth, window.innerHeight), now, dt * 1000)
@@ -1099,7 +1132,8 @@ async function main() {
     }
 
     // 重力
-    if (phase === 'playing' && !clearing && piece) {
+    // 重力（布景模式冻结，只渲染）
+    if (phase === 'playing' && !clearing && piece && !FRAME_PLAY) {
       gravAcc += dt * 1000
       const g = gravityMs(level)
       while (gravAcc > g) {
