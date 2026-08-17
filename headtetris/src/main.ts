@@ -37,6 +37,9 @@ const hintEl = $('hint')
 const chronicleEl = $('chronicle')
 
 const DEBUG = new URLSearchParams(location.search).has('debug')
+/** ?nocam：无摄像头渲染模式（出帧用）——跳过摄像头/模型，隐藏人物层 */
+const NOCAM = new URLSearchParams(location.search).has('nocam')
+if (NOCAM) video.style.display = 'none'
 
 const input = new HeadInput()
 
@@ -194,17 +197,19 @@ function buildWall(w: number, h: number) {
       g.fillRect(bx + 1.5, r * rh + 1.5, bw - 3, 3)
     }
   }
-  // 中心镂空（露出摄像头）：径向渐隐
-  g.globalCompositeOperation = 'destination-in'
-  const mg = g.createRadialGradient(
-    c.width / 2, c.height / 2, Math.min(w, h) * 0.28,
-    c.width / 2, c.height / 2, Math.max(w, h) * 0.72,
-  )
-  mg.addColorStop(0, 'rgba(0,0,0,0)')
-  mg.addColorStop(0.55, 'rgba(0,0,0,0.6)')
-  mg.addColorStop(1, 'rgba(0,0,0,0.96)')
-  g.fillStyle = mg
-  g.fillRect(0, 0, c.width, c.height)
+  // 中心镂空（露出摄像头）：径向渐隐；出帧模式（无摄像头）则整墙铺满
+  if (!NOCAM) {
+    g.globalCompositeOperation = 'destination-in'
+    const mg = g.createRadialGradient(
+      c.width / 2, c.height / 2, Math.min(w, h) * 0.28,
+      c.width / 2, c.height / 2, Math.max(w, h) * 0.72,
+    )
+    mg.addColorStop(0, 'rgba(0,0,0,0)')
+    mg.addColorStop(0.55, 'rgba(0,0,0,0.6)')
+    mg.addColorStop(1, 'rgba(0,0,0,0.96)')
+    g.fillStyle = mg
+    g.fillRect(0, 0, c.width, c.height)
+  }
   bgWall = c
 }
 
@@ -1025,21 +1030,23 @@ async function main() {
     bootEl.textContent = t
     bootEl.classList.toggle('err', err)
   }
-  setBoot('正在唤醒摄像头…')
-  try {
-    await openCamera(video)
-  } catch {
-    setBoot('无法访问摄像头，请检查权限后刷新', true)
-    return
-  }
-  setBoot('正在装载方块…')
-  let face: Awaited<ReturnType<typeof createFace>>
-  try {
-    face = await createFace()
-  } catch (e) {
-    console.error(e)
-    setBoot('模型加载失败，请检查网络后刷新', true)
-    return
+  setBoot(NOCAM ? '正在布置戏台…' : '正在唤醒摄像头…')
+  let face: Awaited<ReturnType<typeof createFace>> | null = null
+  if (!NOCAM) {
+    try {
+      await openCamera(video)
+    } catch {
+      setBoot('无法访问摄像头，请检查权限后刷新', true)
+      return
+    }
+    setBoot('正在装载方块…')
+    try {
+      face = await createFace()
+    } catch (e) {
+      console.error(e)
+      setBoot('模型加载失败，请检查网络后刷新', true)
+      return
+    }
   }
   bootEl.classList.add('hide')
   // 停在初始画面，点击后开始
@@ -1055,7 +1062,7 @@ async function main() {
     let headX = window.innerWidth / 2
     let faceValid = false
 
-    if (video.readyState >= 2) {
+    if (!NOCAM && face && video.readyState >= 2) {
       try {
         const result = face.detectForVideo(video, now)
         const { frame, events } = input.update(result, makeMapper(video.videoWidth, video.videoHeight, window.innerWidth, window.innerHeight), now, dt * 1000)

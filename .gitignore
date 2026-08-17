@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# 出帧截图（gitignore，不入库）
+headtetris/frames/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
