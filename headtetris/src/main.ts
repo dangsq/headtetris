@@ -50,6 +50,7 @@ let lines = 0
 let level = 1
 let gravAcc = 0
 let over = false
+let phase: 'title' | 'playing' | 'over' = 'title'
 let overAt = 0
 let startedAt = 0
 
@@ -101,6 +102,7 @@ function reset() {
   level = 1
   gravAcc = 0
   over = false
+  phase = 'playing'
   clearing = null
   particles = []
   silkStreamers = []
@@ -114,6 +116,7 @@ function spawn() {
   nextKind = bag.next()
   if (collides(board, piece)) {
     over = true
+    phase = 'over'
     overAt = performance.now()
     shake = 1
     hintEl.classList.add('hide')
@@ -529,11 +532,14 @@ function resize() {
 window.addEventListener('resize', resize)
 resize()
 
-// 收工后点击画面重开（800ms 防误触；电脑鼠标 / 手机触摸通吃）
+// 初始画面点击 → 开始游戏；收工画面点击 → 跳过等待回初始画面
 window.addEventListener('pointerdown', () => {
-  if (over && performance.now() - overAt > 800) {
+  if (phase === 'title') {
     reset()
     spawn()
+  } else if (phase === 'over') {
+    phase = 'title'
+    hintEl.classList.remove('hide')
   }
 })
 
@@ -911,7 +917,9 @@ function draw(nowSec: number, headX: number, faceValid: boolean) {
   // HUD（DOM · 账房铅字）
   hudEl.innerHTML = over
     ? `<span class="big">今日收工</span>`
-    : `出丝 <b>${score}</b> 两 &nbsp; 抽丝 <b>${lines}</b> 根 &nbsp; 转速 <b>${level}</b> 档`
+    : phase === 'title'
+      ? '待开工'
+      : `出丝 <b>${score}</b> 两 &nbsp; 抽丝 <b>${lines}</b> 根 &nbsp; 转速 <b>${level}</b> 档`
 
   // 结束画面（收工）
   if (over) {
@@ -925,13 +933,37 @@ function draw(nowSec: number, headX: number, faceValid: boolean) {
     ctx.fillStyle = 'rgba(240, 228, 205, 0.88)'
     ctx.font = `700 ${Math.min(w * 0.03, 20)}px "Songti SC", "PingFang SC", serif`
     ctx.fillText(`本班出丝 ${score} 两 · 抽丝 ${lines} 根`, w / 2, h * 0.4 + Math.min(w * 0.06, 46))
-    // 点击重开提示（呼吸闪烁）
-    if ((performance.now() - overAt) / 1000 > 0.8) {
-      const br = 0.55 + 0.45 * Math.sin((performance.now() - overAt) / 300)
-      ctx.fillStyle = `rgba(240, 228, 205, ${br.toFixed(3)})`
-      ctx.font = `700 ${Math.min(w * 0.026, 18)}px "Songti SC", "PingFang SC", serif`
-      ctx.fillText('—— 点击画面 · 明日开工 ——', w / 2, h * 0.58)
-    }
+    // 倒计时回初始画面 + 点击可跳过
+    const remain = Math.max(0, Math.ceil((5000 - (performance.now() - overAt)) / 1000))
+    const br = 0.55 + 0.45 * Math.sin(performance.now() / 300)
+    ctx.fillStyle = `rgba(240, 228, 205, ${br.toFixed(3)})`
+    ctx.font = `700 ${Math.min(w * 0.026, 18)}px "Songti SC", "PingFang SC", serif`
+    ctx.fillText(`点击跳过 · ${remain} 秒后回到戏台`, w / 2, h * 0.58)
+  }
+
+  // 初始画面
+  if (phase === 'title') {
+    ctx.fillStyle = 'rgba(24, 12, 8, 0.58)'
+    ctx.fillRect(-20, -20, w + 40, h + 40)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    // 厂名
+    ctx.fillStyle = '#e8b06a'
+    ctx.font = `900 ${Math.min(w * 0.045, 30)}px "Songti SC", "PingFang SC", serif`
+    ctx.fillText('苏州第一丝厂 · 缫丝车间', w / 2, h * 0.3)
+    // 主标题
+    ctx.fillStyle = 'rgba(240, 228, 205, 0.95)'
+    ctx.font = `900 ${Math.min(w * 0.11, 82)}px "Songti SC", "PingFang SC", serif`
+    ctx.fillText('抽 丝 方 块', w / 2, h * 0.42)
+    // 呼吸的「点击开始」
+    const tb = 0.5 + 0.5 * Math.sin(performance.now() / 320)
+    ctx.fillStyle = `rgba(232, 176, 106, ${(0.45 + 0.55 * tb).toFixed(3)})`
+    ctx.font = `700 ${Math.min(w * 0.036, 26)}px "Songti SC", "PingFang SC", serif`
+    ctx.fillText('—— 点 击 开 始 ——', w / 2, h * 0.56)
+    // 操作速览
+    ctx.fillStyle = 'rgba(240, 228, 205, 0.6)'
+    ctx.font = `700 ${Math.min(w * 0.02, 14)}px "Songti SC", "PingFang SC", serif`
+    ctx.fillText('移头左右 · 歪头旋转 · 点头加速 · 张嘴砸落', w / 2, h * 0.66)
   }
 
   // 调试
@@ -1010,8 +1042,10 @@ async function main() {
     return
   }
   bootEl.classList.add('hide')
+  // 停在初始画面，点击后开始
   reset()
-  spawn()
+  phase = 'title'
+  piece = null
 
   const loop = () => {
     const now = performance.now()
@@ -1028,7 +1062,7 @@ async function main() {
         headX = frame.x
         faceValid = frame.valid
 
-        if (!over && !clearing) {
+        if (phase === 'playing' && !clearing) {
           // 移动（头 x 驱动）
           if (faceValid && piece) moveTowardCol(headCol(frame.x))
           // 旋转
@@ -1058,7 +1092,7 @@ async function main() {
     }
 
     // 重力
-    if (!over && !clearing && piece) {
+    if (phase === 'playing' && !clearing && piece) {
       gravAcc += dt * 1000
       const g = gravityMs(level)
       while (gravAcc > g) {
@@ -1077,6 +1111,13 @@ async function main() {
     if (clearing) {
       clearing.t += dt
       if (clearing.t > 0.32) finishClear()
+    }
+
+    // 收工画面停留 5 秒后自动回到初始画面
+    if (phase === 'over' && now - overAt > 5000) {
+      phase = 'title'
+      piece = null
+      hintEl.classList.remove('hide')
     }
 
     draw(now / 1000, headX, faceValid)
