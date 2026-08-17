@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>抽丝方块 ✦ 苏州第一丝厂</title>
+  </head>
+  <body>
+    <video id="cam" autoplay playsinline muted></video>
+    <canvas id="stage"></canvas>
+
+    <!-- 老照片质感层 -->
+    <div class="veil" aria-hidden="true"></div>
+
+    <header class="brand">
+      <div class="brand-text">
+        <div class="brand-name">抽丝方块</div>
+        <div class="brand-sub">苏州第一丝厂</div>
+      </div>
+      <div class="seal">苏<br />丝</div>
+    </header>
+
+    <div class="hud" id="hud"></div>
+    <div class="chronicle" id="chronicle" aria-live="polite"></div>
+    <div class="hint" id="hint">
+      <span class="guide">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><g class="face face-pan">
+          <rect x="5" y="4" width="14" height="14" rx="3"/>
+          <rect class="eye" x="9" y="9" width="2" height="2"/>
+          <rect class="eye" x="14" y="9" width="2" height="2"/>
+          <rect class="mouth" x="10" y="13" width="4" height="1.5"/>
+        </g></svg>
+        <i>移头</i>
+      </span>
+      <span class="guide">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><g class="face face-tilt">
+          <rect x="5" y="4" width="14" height="14" rx="3"/>
+          <rect class="eye" x="9" y="9" width="2" height="2"/>
+          <rect class="eye" x="14" y="9" width="2" height="2"/>
+          <rect class="mouth" x="10" y="13" width="4" height="1.5"/>
+        </g><path class="spin-arc" d="M7 2 a10 10 0 0 1 10 0" /></svg>
+        <i>歪头·旋转</i>
+      </span>
+      <span class="guide">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><g class="face face-nod">
+          <rect x="5" y="4" width="14" height="14" rx="3"/>
+          <rect class="eye" x="9" y="9" width="2" height="2"/>
+          <rect class="eye" x="14" y="9" width="2" height="2"/>
+          <rect class="mouth" x="10" y="13" width="4" height="1.5"/>
+        </g><path class="arrow arrow-d" d="M12 19.5 v2.6 M10.8 21 l1.2 1.2 L13.2 21" /></svg>
+        <i>点头·加速</i>
+      </span>
+      <span class="guide">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><g class="face">
+          <rect x="5" y="4" width="14" height="14" rx="3"/>
+          <rect class="eye" x="9" y="9" width="2" height="2"/>
+          <rect class="eye" x="14" y="9" width="2" height="2"/>
+          <rect class="mouth mouth-open" x="10" y="12.5" width="4" height="2"/>
+        </g></svg>
+        <i>张嘴·砸落</i>
+      </span>
+    </div>
+
+    <div class="boot" id="boot">
+      <div class="boot-title">苏州第一丝厂</div>
+      <div class="boot-year">姑苏南门路 · 缫丝车间</div>
+      <div class="boot-msg" id="bootMsg">生火 · 预热缫丝车…</div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
