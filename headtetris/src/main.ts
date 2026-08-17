@@ -116,18 +116,26 @@ function reset() {
   hintEl.classList.remove('hide')
 }
 
-/** 布景模式（?frame=play）：预设一局画面——底堆 + 悬停竖直 I 锭对准差一格抽丝的缺口 */
+/** 布景模式（?frame=play）：预设一局画面——高低错落的底堆 + 悬停竖直 I 锭。
+ *  显式保证：无任何一行填满（11/11），避免出现「已被消掉的行」。 */
 function setupFramePlay() {
   board = newBoard()
-  // 各列底堆高度（col6 只叠 2 格，在 ROWS-3 行留一个缺口 = 差一格抽丝）
-  const heights = [3, 4, 3, 4, 5, 3, 2, 4, 4, 3, 3]
+  // 各列底堆高度：col9 留为「井」（空一列，经典蓄势构图），其余高低错落
+  const heights = [4, 3, 5, 3, 4, 3, 2, 3, 4, 0, 5]
   for (let x = 0; x < COLS; x++) {
     for (let h = 0; h < heights[x]; h++) {
       board[ROWS - 1 - h][x] = ((x + h) % 7) + 1
     }
   }
-  // 活动块：竖直 I 锭（矩阵占第 1 列 → 棋盘列 = x+1 = 6），悬在缺口上方
-  piece = { kind: 'I', rot: 1, x: 5, y: 4 }
+  // 自检：不允许满行
+  for (let y = 0; y < ROWS; y++) {
+    if (board[y].every((c) => c !== null)) {
+      // 若命中（理论不会），把该行最后一列挖空兜底
+      board[y][COLS - 1] = null
+    }
+  }
+  // 活动块：竖直 I 锭（矩阵占第 1 列 → 棋盘列 = x+1 = 6），悬停在井槽上方
+  piece = { kind: 'I', rot: 1, x: 5, y: 6 }
   nextKind = 'O'
   score = 420
   lines = 3
